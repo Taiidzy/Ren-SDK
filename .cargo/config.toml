@@ -1,0 +1,7 @@
+# Конфигурация для WASM сборки
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=+atomics,+bulk-memory,+mutable-globals"]
+
+[unstable]
+build-std = ["core", "alloc", "proc_macro", "std"]
+

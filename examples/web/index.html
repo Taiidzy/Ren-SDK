@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ren SDK - Web Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 200px;
+        }
+        pre {
+            background: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>Ren SDK - Web Example</h1>
+    
+    <div class="container">
+        <h2>Инициализация</h2>
+        <input type="text" id="baseUrl" placeholder="Base URL" value="http://localhost:8001">
+        <button onclick="initClient()">Инициализировать клиент</button>
+        <div id="initStatus"></div>
+    </div>
+
+    <div class="container">
+        <h2>Вход в систему</h2>
+        <input type="text" id="login" placeholder="Логин">
+        <input type="password" id="password" placeholder="Пароль">
+        <button onclick="login()">Войти</button>
+        <div id="loginStatus"></div>
+    </div>
+
+    <div class="container">
+        <h2>Профиль</h2>
+        <button onclick="getMe()">Получить профиль</button>
+        <pre id="profile"></pre>
+    </div>
+
+    <div class="container">
+        <h2>Чаты</h2>
+        <button onclick="getChats()">Получить список чатов</button>
+        <pre id="chats"></pre>
+    </div>
+
+    <div class="container">
+        <h2>Криптография</h2>
+        <button onclick="generateKeypair()">Сгенерировать пару ключей</button>
+        <button onclick="generateSalt()">Сгенерировать соль</button>
+        <pre id="crypto"></pre>
+    </div>
+
+    <script type="module">
+        import init, { WasmClient, wasm_generate_keypair, wasm_generate_salt } from './pkg/ren_sdk.js';
+
+        let client = null;
+
+        async function loadWasm() {
+            try {
+                await init();
+                console.log('WASM модуль загружен');
+            } catch (e) {
+                console.error('Ошибка загрузки WASM:', e);
+            }
+        }
+
+        window.initClient = async function() {
+            const baseUrl = document.getElementById('baseUrl').value;
+            if (!baseUrl) {
+                showStatus('initStatus', 'Введите Base URL', 'error');
+                return;
+            }
+            client = new WasmClient(baseUrl);
+            showStatus('initStatus', 'Клиент инициализирован', 'success');
+        };
+
+        window.login = async function() {
+            if (!client) {
+                showStatus('loginStatus', 'Сначала инициализируйте клиент', 'error');
+                return;
+            }
+            const login = document.getElementById('login').value;
+            const password = document.getElementById('password').value;
+            if (!login || !password) {
+                showStatus('loginStatus', 'Введите логин и пароль', 'error');
+                return;
+            }
+            try {
+                const result = await client.login(login, password, false);
+                showStatus('loginStatus', 'Вход выполнен успешно', 'success');
+                document.getElementById('profile').textContent = JSON.stringify(result, null, 2);
+            } catch (e) {
+                showStatus('loginStatus', 'Ошибка входа: ' + e, 'error');
+            }
+        };
+
+        window.getMe = async function() {
+            if (!client) {
+                document.getElementById('profile').textContent = 'Сначала инициализируйте клиент';
+                return;
+            }
+            try {
+                const profile = await client.get_me();
+                document.getElementById('profile').textContent = JSON.stringify(profile, null, 2);
+            } catch (e) {
+                document.getElementById('profile').textContent = 'Ошибка: ' + e;
+            }
+        };
+
+        window.getChats = async function() {
+            if (!client) {
+                document.getElementById('chats').textContent = 'Сначала инициализируйте клиент';
+                return;
+            }
+            try {
+                const chats = await client.get_chats();
+                document.getElementById('chats').textContent = JSON.stringify(chats, null, 2);
+            } catch (e) {
+                document.getElementById('chats').textContent = 'Ошибка: ' + e;
+            }
+        };
+
+        window.generateKeypair = function() {
+            try {
+                const keypair = wasm_generate_keypair();
+                document.getElementById('crypto').textContent = JSON.stringify(keypair, null, 2);
+            } catch (e) {
+                document.getElementById('crypto').textContent = 'Ошибка: ' + e;
+            }
+        };
+
+        window.generateSalt = function() {
+            try {
+                const salt = wasm_generate_salt();
+                document.getElementById('crypto').textContent = 'Salt: ' + salt;
+            } catch (e) {
+                document.getElementById('crypto').textContent = 'Ошибка: ' + e;
+            }
+        };
+
+        function showStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = type;
+        }
+
+        // Загружаем WASM при загрузке страницы
+        loadWasm();
+    </script>
+</body>
+</html>
+
